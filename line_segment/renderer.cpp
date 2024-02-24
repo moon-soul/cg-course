@@ -30,33 +30,31 @@ void mainLoop()
     memset(frame_buf, 0, sizeof(uint32_t) * FRAME_SIZE_X * FRAME_SIZE_Y);
 
     /* Setup */
-    LineSegment::setFrameSizeX(FRAME_SIZE_X);
-    LineSegment::setFrameSizeY(FRAME_SIZE_Y);
-    LineSegment::setFrameBuf(frame_buf);
+    const Canvas canvas{frame_buf, FRAME_SIZE_X, FRAME_SIZE_Y};
 
     /* Fully out of boundaries */
-    LineSegment line_segment1{{1100.f, 100.f}, {1100.f, -100.f}, 0x0000ffff};
-    LineSegment line_segment2{{0.f, -100.f}, {1100.f, -100.f}, 0x0000ffff};
-    LineSegment line_segment3{{-100.f, 100.f}, {100.f, -100.f}, 0x0000ffff};
+    LineSegment line_segment1{{1100.f, 100.f}, {1100.f, -100.f}};
+    LineSegment line_segment2{{0.f, -100.f}, {1100.f, -100.f}};
+    LineSegment line_segment3{{-100.f, 100.f}, {100.f, -100.f}};
 
     /* Partially out of boundaries */
-    LineSegment line_segment4{{1100.f, 100.f}, {500.f, -100.f}, 0x00ff00ff};
-    LineSegment line_segment5{{-100.f, 100.f}, {500.f, -100.f}, 0x00ff00ff};
-    LineSegment line_segment6{{-100.f, 900.f}, {500.f, 1100.f}, 0x00ff00ff};
-    LineSegment line_segment7{{1100.f, 900.f}, {500.f, 1100.f}, 0x00ff00ff};
-    LineSegment line_segment8{{-10000.f, 0.f}, {10000.f, 1000.f}, 0x00ff00ff};
-    LineSegment line_segment9{{0.f, 10000.f}, {1000.f, -10000.f}, 0x00ff00ff};
+    LineSegment line_segment4{{1100.f, 100.f}, {500.f, -100.f}};
+    LineSegment line_segment5{{-100.f, 100.f}, {500.f, -100.f}};
+    LineSegment line_segment6{{-100.f, 900.f}, {500.f, 1100.f}};
+    LineSegment line_segment7{{1100.f, 900.f}, {500.f, 1100.f}};
+    LineSegment line_segment8{{-10000.f, 0.f}, {10000.f, 1000.f}};
+    LineSegment line_segment9{{0.f, 10000.f}, {1000.f, -10000.f}};
 
     /* Draw */
-    line_segment1.draw();
-    line_segment2.draw();
-    line_segment3.draw();
-    line_segment4.draw();
-    line_segment5.draw();
-    line_segment6.draw();
-    line_segment7.draw();
-    line_segment8.draw();
-    line_segment9.draw();
+    line_segment1.draw(canvas);
+    line_segment2.draw(canvas);
+    line_segment3.draw(canvas);
+    line_segment4.draw(canvas);
+    line_segment5.draw(canvas);
+    line_segment6.draw(canvas);
+    line_segment7.draw(canvas);
+    line_segment8.draw(canvas);
+    line_segment9.draw(canvas);
 
     glRasterPos2i(0, 0);
     glDrawPixels(FRAME_SIZE_X, FRAME_SIZE_Y, GL_RGBA, GL_UNSIGNED_BYTE, frame_buf);

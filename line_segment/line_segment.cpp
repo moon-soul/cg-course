@@ -4,33 +4,12 @@
 #include <iostream>
 #include <limits>
 
-int64_t LineSegment::frame_size_x_ = 0;
-int64_t LineSegment::frame_size_y_ = 0;
-int64_t LineSegment::lower_bound_x_ = 0;
-int64_t LineSegment::lower_bound_y_ = 0;
-uint32_t* LineSegment::frame_buf_ = nullptr;
-
-LineSegment::LineSegment(const Point& a, const Point& b, uint32_t color) : color_(color), a_(a), b_(b)
+LineSegment::LineSegment(const Point& a, const Point& b) : a_(a), b_(b)
 {
     if (not (std::fabs(a_.x - b_.x) < std::numeric_limits<float>::epsilon()))
     {
         calculateSlope();
     }
-}
-
-void LineSegment::setFrameSizeX(int64_t frame_size_x)
-{
-    frame_size_x_ = frame_size_x;
-}
-
-void LineSegment::setFrameSizeY(int64_t frame_size_y)
-{
-    frame_size_y_ = frame_size_y;
-}
-
-void LineSegment::setFrameBuf(uint32_t* frame_buf)
-{
-    frame_buf_ = frame_buf;
 }
 
 LineSegment::Orientation LineSegment::getOrientation() const
@@ -58,20 +37,20 @@ LineSegment::Orientation LineSegment::getOrientation() const
     return LineSegment::Orientation::MostlyHorizontal;
 }
 
-void LineSegment::setColor(uint32_t color)
-{
-    color_ = color;
-}
-
-void LineSegment::draw()
+void LineSegment::draw(const Canvas& canvas)
 {
     const LineSegment::Orientation orientation = getOrientation();
-    clipBoundaries(orientation);
-    if (not isLineSegmentInFrame())
+    clipBoundaries(canvas, orientation);
+    if (not isLineSegmentInFrame(canvas))
     {
-        std::cerr << "[ERROR] Line segment is out of boundaries\n";
         return;
     }
+    const float frame_limit_x = canvas.frame_size_x - 0.5f;
+    const float frame_limit_y = canvas.frame_size_y - 0.5f;
+    a_.x = std::min(a_.x, frame_limit_x);
+    a_.y = std::min(a_.y, frame_limit_y);
+    b_.x = std::min(b_.x, frame_limit_x);
+    b_.y = std::min(b_.y, frame_limit_y);
     alignPixelCenter();
     const float x1 = std::min(a_.x, b_.x);
     const float x2 = std::max(a_.x, b_.x);
@@ -80,25 +59,25 @@ void LineSegment::draw()
     switch (orientation)
     {
     case LineSegment::Orientation::Point:
-        if (isInFrame(x1, y1))
+        if (isInFrame(canvas, x1, y1))
         {
-            drawPoint(x1, y1);
+            drawPoint(canvas, x1, y1);
         }
         break;
     case LineSegment::Orientation::Vertical:
-        drawVertical(x1, y1, y2);
+        drawVertical(canvas, x1, y1, y2);
         break;
     case LineSegment::Orientation::Horizontal:
-        drawHorizontal(y1, x1, x2);
+        drawHorizontal(canvas, y1, x1, x2);
         break;
     case LineSegment::Orientation::Diagonal:
-        drawDiagonal(x1, x2);
+        drawDiagonal(canvas, x1, x2);
         break;
     case LineSegment::Orientation::MostlyVertical:
-        drawMostlyVertical(y1, y2);
+        drawMostlyVertical(canvas, y1, y2);
         break;
     case LineSegment::Orientation::MostlyHorizontal:
-        drawMostlyHorizontal(x1, x2);
+        drawMostlyHorizontal(canvas, x1, x2);
         break;
     default:
         std::cerr << "[ERROR] Failed to draw a line segment\n";
@@ -111,22 +90,22 @@ void LineSegment::calculateSlope()
     slope_ = (b_.y - a_.y) / (b_.x - a_.x);
 }
 
-void LineSegment::clipBoundaries(LineSegment::Orientation orientation)
+void LineSegment::clipBoundaries(const Canvas& canvas, LineSegment::Orientation orientation)
 {
     Point a = a_;
     Point b = b_;
 
-    if (a.x < lower_bound_x_) clipX(a, lower_bound_x_, orientation);
-    else if (a.x >= frame_size_x_) clipX(a, frame_size_x_ - 1, orientation);
+    if (a.x < canvas.lower_bound_x) clipX(a, canvas.lower_bound_x, orientation);
+    else if (a.x > canvas.frame_size_x) clipX(a, canvas.frame_size_x, orientation);
 
-    if (b.x < lower_bound_x_) clipX(b, lower_bound_x_, orientation);
-    else if (b.x >= frame_size_x_) clipX(b, frame_size_x_ - 1, orientation);
+    if (b.x < canvas.lower_bound_x) clipX(b, canvas.lower_bound_x, orientation);
+    else if (b.x > canvas.frame_size_x) clipX(b, canvas.frame_size_x, orientation);
 
-    if (a.y < lower_bound_y_) clipY(a, lower_bound_y_, orientation);
-    else if (a.y >= frame_size_y_) clipY(a, frame_size_y_ - 1, orientation);
+    if (a.y < canvas.lower_bound_y) clipY(a, canvas.lower_bound_y, orientation);
+    else if (a.y > canvas.frame_size_y) clipY(a, canvas.frame_size_y, orientation);
 
-    if (b.y < lower_bound_y_) clipY(b, lower_bound_y_, orientation);
-    else if (b.y >= frame_size_y_) clipY(b, frame_size_y_ - 1, orientation);
+    if (b.y < canvas.lower_bound_y) clipY(b, canvas.lower_bound_y, orientation);
+    else if (b.y > canvas.frame_size_y) clipY(b, canvas.frame_size_y, orientation);
 
     if (isWithinLineSegment(a) and isWithinLineSegment(b))
     {
@@ -135,7 +114,7 @@ void LineSegment::clipBoundaries(LineSegment::Orientation orientation)
     }
 }
 
-void LineSegment::clipX(Point& p, int64_t x_bound, LineSegment::Orientation orientation)
+void LineSegment::clipX(Point& p, int64_t x_bound, LineSegment::Orientation orientation) const
 {
     if (orientation == LineSegment::Orientation::Horizontal)
     {
@@ -153,7 +132,7 @@ void LineSegment::clipX(Point& p, int64_t x_bound, LineSegment::Orientation orie
     }
 }
 
-void LineSegment::clipY(Point& p, int64_t y_bound, LineSegment::Orientation orientation)
+void LineSegment::clipY(Point& p, int64_t y_bound, LineSegment::Orientation orientation) const
 {
     if (orientation == LineSegment::Orientation::Vertical)
     {
@@ -173,14 +152,14 @@ bool LineSegment::isWithinLineSegment(const Point& p) const
     return (isWithinX and isWithinY);
 }
 
-bool LineSegment::isLineSegmentInFrame() const
+bool LineSegment::isLineSegmentInFrame(const Canvas& canvas) const
 {
-    return (isInFrame(a_.x, a_.y) or isInFrame(b_.x, b_.y));
+    return (isInFrame(canvas, a_.x, a_.y) or isInFrame(canvas, b_.x, b_.y));
 }
 
-bool LineSegment::isInFrame(float x, float y) const
+bool LineSegment::isInFrame(const Canvas& canvas, float x, float y) const
 {
-    return (x >= 0 and y >= 0 and x < frame_size_x_ and y < frame_size_y_);
+    return (x >= 0 and y >= 0 and x <= canvas.frame_size_x and y <= canvas.frame_size_y);
 }
 
 void LineSegment::alignPixelCenter()
@@ -191,56 +170,56 @@ void LineSegment::alignPixelCenter()
     b_.y = std::floor(b_.y) + 0.5f;
 }
 
-inline void LineSegment::drawPoint(float x, float y)
+inline void LineSegment::drawPoint(const Canvas& canvas, float x, float y) const
 {
-    frame_buf_[static_cast<int64_t>(x) + static_cast<int64_t>(y) * frame_size_x_] = color_;
+    canvas.frame_buf[static_cast<int64_t>(x) + static_cast<int64_t>(y) * canvas.frame_size_x] = canvas.pen_color;
 }
 
-void LineSegment::drawVertical(float x, float start_y, float end_y)
+void LineSegment::drawVertical(const Canvas& canvas, float x, float start_y, float end_y) const
 {
     const int64_t end_y_int = static_cast<int64_t>(end_y);
     for (int64_t y = start_y; y <= end_y_int; ++y)
     {
-        drawPoint(x, y);
+        drawPoint(canvas, x, y);
     }
 }
 
-void LineSegment::drawHorizontal(float y, float start_x, float end_x)
+void LineSegment::drawHorizontal(const Canvas& canvas, float y, float start_x, float end_x) const
 {
     const int64_t end_x_int = static_cast<int64_t>(end_x);
     for (int64_t x = start_x; x <= end_x_int; ++x)
     {
-        drawPoint(x, y);
+        drawPoint(canvas, x, y);
     }
 }
 
-void LineSegment::drawDiagonal(float start_x, float end_x)
+void LineSegment::drawDiagonal(const Canvas& canvas, float start_x, float end_x) const
 {
     const int64_t end_x_int = static_cast<int64_t>(end_x);
     for (int64_t x = start_x; x <= end_x_int; ++x)
     {
         const float y = getYifDiagonalX(x + 0.5f);
-        drawPoint(x, y);
+        drawPoint(canvas, x, y);
     }
 }
 
-void LineSegment::drawMostlyVertical(float start_y, float end_y)
+void LineSegment::drawMostlyVertical(const Canvas& canvas, float start_y, float end_y) const
 {
     const int64_t end_y_int = static_cast<int64_t>(end_y);
     for (int64_t y = start_y; y <= end_y_int; ++y)
     {
         const float x = getXifY(y + 0.5f);
-        drawPoint(x, y);
+        drawPoint(canvas, x, y);
     }
 }
 
-void LineSegment::drawMostlyHorizontal(float start_x, float end_x)
+void LineSegment::drawMostlyHorizontal(const Canvas& canvas, float start_x, float end_x) const
 {
     const int64_t end_x_int = static_cast<int64_t>(end_x);
     for (int64_t x = start_x; x <= end_x_int; ++x)
     {
         const float y = getYifX(x + 0.5f);
-        drawPoint(x, y);
+        drawPoint(canvas, x, y);
     }
 }
 
