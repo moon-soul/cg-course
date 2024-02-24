@@ -2,6 +2,7 @@
 
 #include <cstdint>
 
+#include "canvas.hpp"
 #include "point.hpp"
 
 class LineSegment
@@ -17,41 +18,34 @@ public:
         MostlyHorizontal
     };
 
-    LineSegment(const Point& a, const Point& b, uint32_t color = 0x000000ff);
-
-    static void setFrameSizeX(int64_t frame_size_x);
-    static void setFrameSizeY(int64_t frame_size_y);
-    static void setFrameBuf(uint32_t* frame_buf);
+    LineSegment(const Point& a, const Point& b);
 
     Orientation getOrientation() const;
-    void setColor(uint32_t color);
-    void draw();
+    void draw(const Canvas& canvas);
 
 private:
     void calculateSlope();
-    void clipBoundaries(LineSegment::Orientation orientation);
-    void clipX(Point& p, int64_t x_bound, LineSegment::Orientation orientation);
-    void clipY(Point& p, int64_t y_bound, LineSegment::Orientation orientation);
+
+    void clipBoundaries(const Canvas& canvas, LineSegment::Orientation orientation);
+    void clipX(Point& p, int64_t x_bound, LineSegment::Orientation orientation) const;
+    void clipY(Point& p, int64_t y_bound, LineSegment::Orientation orientation) const;
     bool isWithinLineSegment(const Point& p) const;
-    bool isLineSegmentInFrame() const;
-    bool isInFrame(float x, float y) const;
+
+    bool isLineSegmentInFrame(const Canvas& canvas) const;
+    bool isInFrame(const Canvas& canvas, float x, float y) const;
     void alignPixelCenter();
-    inline void drawPoint(float x, float y);
-    void drawVertical(float x, float start_y, float end_y);
-    void drawHorizontal(float y, float start_x, float end_x);
-    void drawDiagonal(float start_x, float end_x);
-    void drawMostlyVertical(float start_y, float end_y);
-    void drawMostlyHorizontal(float start_x, float end_x);
+
+    inline void drawPoint(const Canvas& canvas, float x, float y) const;
+    void drawVertical(const Canvas& canvas, float x, float start_y, float end_y) const;
+    void drawHorizontal(const Canvas& canvas, float y, float start_x, float end_x) const;
+    void drawDiagonal(const Canvas& canvas, float start_x, float end_x) const;
+    void drawMostlyVertical(const Canvas& canvas, float start_y, float end_y) const;
+    void drawMostlyHorizontal(const Canvas& canvas, float start_x, float end_x) const;
+
     inline float getYifDiagonalX(float x) const;
     inline float getXifY(float y) const;
     inline float getYifX(float x) const;
 
-    static int64_t frame_size_x_;
-    static int64_t frame_size_y_;
-    static int64_t lower_bound_x_;
-    static int64_t lower_bound_y_;
-    static uint32_t* frame_buf_;
-    uint32_t color_;
     Point a_;
     Point b_;
     float slope_;
